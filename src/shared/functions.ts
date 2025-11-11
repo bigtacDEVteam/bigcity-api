@@ -20,49 +20,6 @@ export const guidGenerator = (): string =>
       .substring(1),
   ).join('');
 
-const replaceDomainWithLocalhost = (url: string) => {
-  const { hostname, port, protocol, href } = new URL(url);
-  return href.replace(
-    `${protocol}//${hostname}:${port}`,
-    'http://localhost:5000',
-  );
-};
-
-export const eghlFixedFields = (p: any) => ({
-  MerchantName: 'BigTac',
-  MerchantReturnURL:
-    process.env.ENV === 'local' && p?.MerchantReturnURL
-      ? replaceDomainWithLocalhost(p.MerchantReturnURL)
-      : p?.MerchantReturnURL,
-  MerchantCallbackURL:
-    process.env.ENV === 'local' && p?.MerchantCallbackURL
-      ? replaceDomainWithLocalhost(p.MerchantCallbackURL)
-      : p?.MerchantCallbackURL,
-  MerchantTermsURL:
-    process.env.ENV === 'local' && p?.MerchantTermsURL
-      ? replaceDomainWithLocalhost(p.MerchantTermsURL)
-      : p?.MerchantTermsURL,
-  LanguageCode: 'en',
-  PageTimeout: '780',
-  CurrencyCode: 'MYR',
-});
-
-export const generateSaleHashKey = (p: any) => {
-  const fields = eghlFixedFields(p);
-  const hashKey = [
-    p.password,
-    p.username,
-    p.PaymentID,
-    fields.MerchantReturnURL,
-    fields.MerchantCallbackURL,
-    p.Amount,
-    fields.CurrencyCode,
-    p.CustIP,
-    fields.PageTimeout,
-  ].join('');
-
-  return sha256.update(hashKey).hex();
-};
 
 export const processFile = async (
   file: Express.Multer.File,

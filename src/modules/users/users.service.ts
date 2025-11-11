@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from 'src/entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from 'src/entities/user.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class UsersService {
@@ -13,26 +13,50 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const newUser = this.userRepository.create(createUserDto);
-    return this.userRepository.save(newUser);
+    // split out numeric operator id from DTO and map to relation
+    const { operator, ...rest } = createUserDto;
+
+    const entity = this.userRepository.create({
+      ...rest,
+      operator: operator ? ({ id: operator } as any) : undefined, // relation
+    });
+
+    return await this.userRepository.save(entity);
   }
 
-  async findWithFilter(paginationDto: any, userId: number): Promise<User[]> {
-    // Example: simple find all. You can replace with pagination/filter logic later
-    return this.userRepository.find();
+  async findWithFilter(_paginationDto: any, _userId: number): Promise<User[]> {
+    // basic example; add filters later
+    return this.userRepository.find({ relations: { operator: true } });
   }
 
-async findOne(id: number): Promise<User | null> {
-  return this.userRepository.findOneBy({ id });
-}
+  async findOne(id: number): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { id },
+      relations: { operator: true },
+    });
+  }
 
   async update(
     id: number,
     updateUserDto: UpdateUserDto,
-    userId: any,
+    _userId: any,
   ): Promise<User | null> {
-    await this.userRepository.update(id, updateUserDto);
-    return this.userRepository.findOneBy({ id });
+    const existing = await this.userRepository.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException('User not found');
+
+    const { operator, ...rest } = updateUserDto;
+
+    await this.userRepository.update(id, {
+      ...rest,
+      ...(operator !== undefined
+        ? { operator: ({ id: operator } as any) }
+        : {}),
+    });
+
+    return this.userRepository.findOne({
+      where: { id },
+      relations: { operator: true },
+    });
   }
 
   async remove(id: number): Promise<{ deleted: boolean }> {
